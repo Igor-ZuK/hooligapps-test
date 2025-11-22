@@ -1,0 +1,19 @@
+services:
+  app_test:
+    build:
+      context: ../../
+      dockerfile: DockerfileTest
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../../:/app
+  db_test:
+    image: postgres:15.7
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=hooligapps_test_backend_db_test

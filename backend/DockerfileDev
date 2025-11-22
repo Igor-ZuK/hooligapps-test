@@ -1,0 +1,17 @@
+FROM python:3.12 as python-base
+
+ARG GEMFURY_TOKEN="F2HmD-QOH98JflhGCHn8CX0A1OgHHPCM"
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+
+WORKDIR /app
+COPY poetry.lock pyproject.toml Makefile /app/
+
+# Use install instead of install-dev to skip pre-commit hooks in Docker
+RUN make install
+
+COPY . /app
+
+RUN chmod +x ./main.py ./migration.py
+
+
+CMD ["python", "main.py"]

@@ -1,0 +1,15 @@
+FROM python:3.12 as python-base
+
+ARG GEMFURY_TOKEN="F2HmD-QOH98JflhGCHn8CX0A1OgHHPCM"
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+
+WORKDIR /app
+COPY poetry.lock pyproject.toml Makefile /app/
+
+RUN make install
+
+COPY . /app
+
+RUN chmod +x ./main.py ./migration.py
+
+CMD ["poetry", "run", "pytest", "-vv", "--cov=project/"]
