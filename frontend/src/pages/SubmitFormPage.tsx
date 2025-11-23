@@ -91,6 +91,8 @@ function SubmitFormPage() {
             value={formData.date}
             onChange={handleChange}
             required
+            autoComplete="off"
+            data-form-type="other"
           />
           {errors.date && (
             <div className="error-message">
@@ -110,6 +112,8 @@ function SubmitFormPage() {
             value={formData.first_name}
             onChange={handleChange}
             required
+            autoComplete="off"
+            data-form-type="other"
           />
           {errors.first_name && (
             <div className="error-message">
@@ -129,6 +133,8 @@ function SubmitFormPage() {
             value={formData.last_name}
             onChange={handleChange}
             required
+            autoComplete="off"
+            data-form-type="other"
           />
           {errors.last_name && (
             <div className="error-message">

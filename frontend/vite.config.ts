@@ -1,6 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// Determine API target based on environment
+// In Docker, use service name; locally, use localhost
+const getApiTarget = () => {
+  // Check if we're in Docker (backend service is accessible)
+  if (process.env.VITE_API_URL) {
+      console.log("TEST", process.env.VITE_API_URL)
+    return process.env.VITE_API_URL
+  }
+  // In Docker Compose, backend service is accessible via service name
+  // For local development, use localhost
+    console.log("NODE_ENV", process.env.NODE_ENV)
+  return process.env.NODE_ENV === 'production' ? 'http://backend:8000' : 'http://localhost:8000'
+}
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -8,8 +22,9 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://backend:8000',
+        target: getApiTarget(),
         changeOrigin: true,
+        rewrite: (path) => path,
       },
     },
   },

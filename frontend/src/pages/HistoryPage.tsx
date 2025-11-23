@@ -67,6 +67,7 @@ function HistoryPage() {
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
+    // Use functional update to ensure state is updated correctly
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -121,6 +122,8 @@ function HistoryPage() {
             value={formData.date}
             onChange={handleChange}
             required
+            autoComplete="off"
+            data-form-type="other"
           />
         </div>
 
@@ -131,6 +134,7 @@ function HistoryPage() {
             name="first_name"
             value={formData.first_name}
             onChange={handleChange}
+            disabled={loading}
           >
             <option value="">Все имена</option>
             {uniqueFirstNames.map((name) => (
@@ -148,6 +152,7 @@ function HistoryPage() {
             name="last_name"
             value={formData.last_name}
             onChange={handleChange}
+            disabled={loading}
           >
             <option value="">Все фамилии</option>
             {uniqueLastNames.map((name) => (

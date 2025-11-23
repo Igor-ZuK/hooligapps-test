@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15.7
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'poetry'
+          cache-dependency-path: backend/poetry.lock
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Install dependencies
+        working-directory: ./backend
+        run: poetry install --no-interaction
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+      
+      - name: Run migrations
+        working-directory: ./backend
+        run: poetry run alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+          POSTGRES_HOST: localhost
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_PORT: 5432
+          POSTGRES_DBNAME: test_db
+      
+      - name: Run linter
+        working-directory: ./backend
+        run: poetry run ruff check . || true
+      
+      - name: Run type checker
+        working-directory: ./backend
+        run: poetry run mypy project/ || true
+      
+      - name: Run tests
+        working-directory: ./backend
+        run: poetry run pytest -v --cov=project --cov-report=xml --cov-report=term
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+          POSTGRES_HOST: localhost
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_PORT: 5432
+          POSTGRES_DBNAME: test_db
+          DEBUG: "True"
+      
+      - name: Upload coverage (optional)
+        uses: codecov/codecov-action@v3
+        continue-on-error: true
+        with:
+          file: ./backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Run linter
+        working-directory: ./frontend
+        run: npm run lint || echo "No lint script found"
+        continue-on-error: true
+      
+      - name: Run tests
+        working-directory: ./frontend
+        run: npm run test -- --run
+      
+      - name: Build
+        working-directory: ./frontend
+        run: npm run build
+
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/DockerfileDev
+          push: false
+          tags: hooligapps-test-backend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: hooligapps-test-frontend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+

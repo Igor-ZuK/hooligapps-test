@@ -126,3 +126,17 @@ make generate-types  # Сгенерировать типы из Swagger
 2. **Страница отправки формы** (`/submit`) - Форма с валидацией
 3. **Страница истории** (`/history`) - Таблица с фильтрацией
 
+## CI/CD
+
+Проект использует GitHub Actions для автоматического тестирования:
+
+- **Backend tests** - запускаются на Python 3.12 с PostgreSQL
+- **Frontend tests** - запускаются на Node.js 20
+- **Docker build** - проверка сборки Docker образов
+
+Workflow файл: `.github/workflows/ci.yml`
+
+CI запускается автоматически при:
+- Push в ветки `main` или `develop`
+- Создании Pull Request в `main` или `develop`
+
