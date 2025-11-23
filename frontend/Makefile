@@ -12,7 +12,7 @@ endif
 # 2. Try system npm
 # 3. Fallback to Docker (only if frontend container is running)
 # For local development with PyCharm, create frontend/.env.local (gitignored) with:
-#   NPM_PATH="/Users/job/Library/Application Support/JetBrains/PyCharm2025.2/node/versions/20.19.5/bin/npm"
+#   NPM_PATH=".../JetBrains/PyCharm2025.2/node/versions/20.19.5/bin/npm"
 NPM := $(shell \
 	if [ -n "$(NPM_PATH)" ] && [ -f "$(NPM_PATH)" ]; then \
 		echo "$(NPM_PATH)"; \
@@ -31,7 +31,7 @@ install:
 
 # Run tests
 test:
-	$(NPM) run test
+	$(NPM) run test -- --run
 
 # Run tests in watch mode
 test-watch:

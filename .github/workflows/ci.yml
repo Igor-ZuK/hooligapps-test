@@ -37,22 +37,15 @@ jobs:
           cache: 'poetry'
           cache-dependency-path: backend/poetry.lock
       
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-      
       - name: Install dependencies
         working-directory: ./backend
-        run: poetry install --no-interaction
+        run: make install
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
       
       - name: Run migrations
         working-directory: ./backend
-        run: poetry run alembic upgrade head
+        run: make migrate
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
           POSTGRES_HOST: localhost
@@ -106,7 +99,7 @@ jobs:
       
       - name: Install dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: make install
       
       - name: Run linter
         working-directory: ./frontend
@@ -115,11 +108,11 @@ jobs:
       
       - name: Run tests
         working-directory: ./frontend
-        run: npm run test -- --run
+        run: make test
       
       - name: Build
         working-directory: ./frontend
-        run: npm run build
+        run: make build
 
   docker-build:
     name: Docker Build Test

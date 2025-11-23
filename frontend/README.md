@@ -31,27 +31,6 @@ make install
 make dev
 ```
 
-### Локальная разработка с PyCharm npm
-
-Если npm недоступен в системе, но установлен через PyCharm:
-
-**Создайте файл `frontend/.env.local` (gitignored) с содержимым:**
-
-```bash
-NPM_PATH="/Users/job/Library/Application Support/JetBrains/PyCharm2025.2/node/versions/20.19.5/bin/npm"
-```
-
-Или установите переменную окружения:
-
-```bash
-export NPM_PATH="/Users/job/Library/Application Support/JetBrains/PyCharm2025.2/node/versions/20.19.5/bin/npm"
-```
-
-Makefile автоматически обнаружит npm в следующем порядке:
-1. Переменная `NPM_PATH` из `.env.local` или окружения
-2. Системный npm
-3. Docker (только если контейнер запущен)
-
 ## Основные команды
 
 См. `Makefile` для всех доступных команд:
