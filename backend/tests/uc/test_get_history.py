@@ -27,11 +27,14 @@ class TestGetHistory:
         mock_record2.first_name = "John"
         mock_record2.last_name = "Smith"
 
-        mock_records = [mock_record1, mock_record2]
+        # New method returns tuples: (record, count)
+        mock_records_with_counts = [
+            (mock_record1, 0),
+            (mock_record2, 0),
+        ]
 
-        dal_mock.get_filtered_history.return_value = mock_records
+        dal_mock.get_filtered_history_with_counts.return_value = mock_records_with_counts
         dal_mock.count_filtered_history.return_value = 2
-        dal_mock.count_previous_entries.return_value = 0
 
         request = GetHistoryRequest(date_filter=date(2025, 1, 20))
 
@@ -44,7 +47,7 @@ class TestGetHistory:
         assert result.items[0].first_name == "Ivan"
         assert result.items[0].count == 0
 
-        dal_mock.get_filtered_history.assert_awaited_once_with(
+        dal_mock.get_filtered_history_with_counts.assert_awaited_once_with(
             date_filter=date(2025, 1, 20),
             first_name=None,
             last_name=None,
@@ -67,11 +70,11 @@ class TestGetHistory:
         mock_record.first_name = "Ivan"
         mock_record.last_name = "Ivanov"
 
-        mock_records = [mock_record]
+        # New method returns tuples: (record, count)
+        mock_records_with_counts = [(mock_record, 2)]
 
-        dal_mock.get_filtered_history.return_value = mock_records
+        dal_mock.get_filtered_history_with_counts.return_value = mock_records_with_counts
         dal_mock.count_filtered_history.return_value = 1
-        dal_mock.count_previous_entries.return_value = 2
 
         request = GetHistoryRequest(date_filter=date(2025, 1, 20), first_name="Ivan")
 
@@ -82,7 +85,7 @@ class TestGetHistory:
         assert result.items[0].first_name == "Ivan"
         assert result.items[0].count == 2
 
-        dal_mock.get_filtered_history.assert_awaited_once_with(
+        dal_mock.get_filtered_history_with_counts.assert_awaited_once_with(
             date_filter=date(2025, 1, 20),
             first_name="Ivan",
             last_name=None,
@@ -100,11 +103,11 @@ class TestGetHistory:
         mock_record.first_name = "Ivan"
         mock_record.last_name = "Ivanov"
 
-        mock_records = [mock_record]
+        # New method returns tuples: (record, count)
+        mock_records_with_counts = [(mock_record, 3)]
 
-        dal_mock.get_filtered_history.return_value = mock_records
+        dal_mock.get_filtered_history_with_counts.return_value = mock_records_with_counts
         dal_mock.count_filtered_history.return_value = 1
-        dal_mock.count_previous_entries.return_value = 3
 
         request = GetHistoryRequest(
             date_filter=date(2025, 1, 20),
@@ -118,21 +121,16 @@ class TestGetHistory:
         assert len(result.items) == 1
         assert result.items[0].count == 3
 
-        dal_mock.get_filtered_history.assert_awaited_once_with(
+        dal_mock.get_filtered_history_with_counts.assert_awaited_once_with(
             date_filter=date(2025, 1, 20),
             first_name="Ivan",
             last_name="Ivanov",
             limit=10,
         )
-        dal_mock.count_previous_entries.assert_awaited_once_with(
-            record_date=date(2025, 1, 20),
-            first_name="Ivan",
-            last_name="Ivanov",
-        )
 
     @pytest.mark.asyncio
-    async def test_count_previous_entries_called_for_each_record(self):
-        """Test that count_previous_entries is called for each record."""
+    async def test_get_filtered_history_with_counts_called_once(self):
+        """Test that get_filtered_history_with_counts is called once (no N+1)."""
         dal_mock = AsyncMock()
         uc = GetHistory(form_history_dal=dal_mock)
 
@@ -146,14 +144,21 @@ class TestGetHistory:
         mock_record2.first_name = "John"
         mock_record2.last_name = "Smith"
 
-        mock_records = [mock_record1, mock_record2]
+        # New method returns tuples: (record, count)
+        mock_records_with_counts = [
+            (mock_record1, 0),
+            (mock_record2, 1),
+        ]
 
-        dal_mock.get_filtered_history.return_value = mock_records
+        dal_mock.get_filtered_history_with_counts.return_value = mock_records_with_counts
         dal_mock.count_filtered_history.return_value = 2
-        dal_mock.count_previous_entries.return_value = 0
 
         request = GetHistoryRequest(date_filter=date(2025, 1, 20))
 
-        await uc.execute(request)
+        result = await uc.execute(request)
 
-        assert dal_mock.count_previous_entries.await_count == 2
+        # Should be called only once, not N times
+        assert dal_mock.get_filtered_history_with_counts.await_count == 1
+        assert len(result.items) == 2
+        assert result.items[0].count == 0
+        assert result.items[1].count == 1

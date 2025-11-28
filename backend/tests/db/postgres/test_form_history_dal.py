@@ -195,3 +195,80 @@ class TestFormHistoryDAL:
 
             unique_names = await dal.get_unique_last_names()
             assert set(unique_names) == {"Ivanov", "Smith"}
+
+    @pytest.mark.asyncio
+    async def test_get_filtered_history_with_counts(self, sync_session):
+        """Test getting filtered history with counts in a single query (no N+1)."""
+        async_session = get_async_session()
+        async with await async_session.__anext__() as session:
+            dal = FormHistoryDAL(session=session)
+
+            # Create test data: same person multiple times
+            await dal.create_form_entry(date=date(2025, 1, 10), first_name="Ivan", last_name="Ivanov")
+            await dal.create_form_entry(date=date(2025, 1, 15), first_name="Ivan", last_name="Ivanov")
+            await dal.create_form_entry(date=date(2025, 1, 20), first_name="Ivan", last_name="Ivanov")
+            await dal.create_form_entry(date=date(2025, 1, 12), first_name="John", last_name="Smith")
+            await dal.create_form_entry(date=date(2025, 1, 18), first_name="John", last_name="Smith")
+
+            # Get history with counts
+            results = await dal.get_filtered_history_with_counts(date_filter=date(2025, 1, 20), limit=10)
+
+            # Should return tuples: (FormHistory, count)
+            assert len(results) == 5
+            assert all(isinstance(item, tuple) and len(item) == 2 for item in results)
+
+            # Find Ivan Ivanov entries and check counts
+            ivan_entries = [(r, c) for r, c in results if r.first_name == "Ivan" and r.last_name == "Ivanov"]
+            ivan_entries.sort(key=lambda x: x[0].date)
+
+            # Entry on 2025-01-10 should have count 0 (first entry)
+            assert ivan_entries[0][0].date == date(2025, 1, 10)
+            assert ivan_entries[0][1] == 0
+
+            # Entry on 2025-01-15 should have count 1 (one previous entry)
+            assert ivan_entries[1][0].date == date(2025, 1, 15)
+            assert ivan_entries[1][1] == 1
+
+            # Entry on 2025-01-20 should have count 2 (two previous entries)
+            assert ivan_entries[2][0].date == date(2025, 1, 20)
+            assert ivan_entries[2][1] == 2
+
+            # Find John Smith entries
+            john_entries = [(r, c) for r, c in results if r.first_name == "John" and r.last_name == "Smith"]
+            john_entries.sort(key=lambda x: x[0].date)
+
+            # Entry on 2025-01-12 should have count 0
+            assert john_entries[0][0].date == date(2025, 1, 12)
+            assert john_entries[0][1] == 0
+
+            # Entry on 2025-01-18 should have count 1
+            assert john_entries[1][0].date == date(2025, 1, 18)
+            assert john_entries[1][1] == 1
+
+    @pytest.mark.asyncio
+    async def test_get_filtered_history_with_counts_filters(self, sync_session):
+        """Test that get_filtered_history_with_counts respects filters."""
+        async_session = get_async_session()
+        async with await async_session.__anext__() as session:
+            dal = FormHistoryDAL(session=session)
+
+            # Create test data
+            await dal.create_form_entry(date=date(2025, 1, 10), first_name="Ivan", last_name="Ivanov")
+            await dal.create_form_entry(date=date(2025, 1, 15), first_name="Ivan", last_name="Ivanov")
+            await dal.create_form_entry(date=date(2025, 1, 20), first_name="John", last_name="Smith")
+
+            # Filter by first_name
+            results = await dal.get_filtered_history_with_counts(
+                date_filter=date(2025, 1, 20), first_name="Ivan", limit=10
+            )
+
+            assert len(results) == 2
+            assert all(r.first_name == "Ivan" for r, _ in results)
+
+            # Filter by first_name and last_name
+            results = await dal.get_filtered_history_with_counts(
+                date_filter=date(2025, 1, 20), first_name="Ivan", last_name="Ivanov", limit=10
+            )
+
+            assert len(results) == 2
+            assert all(r.first_name == "Ivan" and r.last_name == "Ivanov" for r, _ in results)

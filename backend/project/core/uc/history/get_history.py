@@ -15,7 +15,7 @@ class GetHistory(UC):
 
     async def execute(self, request: GetHistoryRequest, *args: Any, **kwargs: Any) -> GetHistoryResponse:  # type: ignore
         """Get history of form submissions with filtering."""
-        records = await self._form_history_dal.get_filtered_history(
+        records_with_counts = await self._form_history_dal.get_filtered_history_with_counts(
             date_filter=request.date_filter,
             first_name=request.first_name,
             last_name=request.last_name,
@@ -29,13 +29,7 @@ class GetHistory(UC):
         )
 
         items = []
-        for record in records:
-            count = await self._form_history_dal.count_previous_entries(
-                record_date=record.date,
-                first_name=record.first_name,
-                last_name=record.last_name,
-            )
-
+        for record, count in records_with_counts:
             items.append(
                 HistoryItem(
                     date=record.date,

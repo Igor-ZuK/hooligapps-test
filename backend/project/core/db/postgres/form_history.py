@@ -4,6 +4,7 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from project.core.db.postgres.base import BaseDAL
 from project.core.db.postgres.models import Base
@@ -99,3 +100,51 @@ class FormHistoryDAL(BaseDAL):
         query = select(FormHistory.last_name).distinct()
         result = await self.session.execute(query)
         return [name for name in result.scalars().all() if name]
+
+    async def get_filtered_history_with_counts(
+        self,
+        date_filter: date,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        limit: int = 10,
+    ) -> list[tuple[FormHistory, int]]:
+        """
+        Get filtered history entries with count of previous entries in a single query.
+
+        Returns list of tuples: (FormHistory record, count of previous entries).
+        This eliminates N+1 query problem by using a subquery.
+        """
+        # Create alias for the subquery
+        fh2 = aliased(FormHistory)
+
+        # Subquery to count previous entries for each record
+        count_subquery = (
+            select(func.count(fh2.id))
+            .where(
+                and_(
+                    fh2.first_name == FormHistory.first_name,
+                    fh2.last_name == FormHistory.last_name,
+                    fh2.date < FormHistory.date,
+                )
+            )
+            .scalar_subquery()
+        )
+
+        # Main query with count subquery
+        query = select(FormHistory, count_subquery.label("count")).where(FormHistory.date <= date_filter)
+
+        if first_name:
+            query = query.where(FormHistory.first_name == first_name)
+        if last_name:
+            query = query.where(FormHistory.last_name == last_name)
+
+        query = query.order_by(
+            FormHistory.date.desc(),
+            FormHistory.first_name.asc(),
+            FormHistory.last_name.asc(),
+        ).limit(limit)
+
+        result = await self.session.execute(query)
+
+        # list of tuples: (FormHistory, count)
+        return [(row[0], row[1] or 0) for row in result.all()]
